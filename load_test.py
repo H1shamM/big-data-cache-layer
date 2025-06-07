@@ -25,7 +25,7 @@ def single_request(key: str):
 
 def run_test():
     latencies = []
-    sources = {"cache": 0 ,"source": 0, "error": 0}
+    sources = {"cache": 0 ,"origin": 0, "error": 0}
 
     for i in range(TOTAL_REQUESTS):
         if i < int(TOTAL_REQUESTS * 0.7):
