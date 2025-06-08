@@ -28,14 +28,14 @@ jobs:
         run: pytest -q
 
       - name: Build Docker images
-        run: docker-compose build
+        run: docker compose build
 
       - name: Smoke-test FastAPI
         run: |
-          docker-compose up -d redis web
+          docker compose up -d redis web
           sleep 5
           curl --fail http://localhost:5000/health
-          docker-compose down
+          docker compose down
 
       - name: Lint code
         run: |
