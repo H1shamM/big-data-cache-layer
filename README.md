@@ -5,16 +5,17 @@ This project implements a simple Big-Data cache layer using FastAPI and Redis. I
 - In-memory caching patterns with Redis.
 - Performance improvements via caching.
 - Metrics instrumentation with Prometheus.
-- Dockerized setup with `docker-compose` for easy deployment.
+- Visualization with Grafana dashboards.
+- Containerized setup with Docker Compose for easy deployment.
 
 ---
 
 ## Prerequisites
 
-- **Docker & Docker Compose**: To run Redis and FastAPI services.
-- **Python 3.11+**: For local development and running load tests.
-- **pip**: To install Python dependencies if running locally.
-- **Git**: To manage the repository.
+- **Docker** (with Compose plugin) to build and run containers.
+- **Python 3.11+** for local development and load testing.
+- **pip** to install Python dependencies locally.
+- **Git** to clone and manage the repo.
 
 ---
 
@@ -23,12 +24,19 @@ This project implements a simple Big-Data cache layer using FastAPI and Redis. I
 ```
 big-data-cache-layer/
 ├── app/
-│   ├── cache.py           # Redis client and Prometheus metrics
-│   └── main.py            # FastAPI application
-├── Dockerfile             # Builds FastAPI container
-├── docker-compose.yml     # Defines Redis and FastAPI services
-├── load_test.py           # Script to benchmark cache performance
-├── requirements.txt       # Python dependencies
+│   ├── cache.py           # Redis client, configurable TTL & latency, Prometheus metrics
+│   └── main.py            # FastAPI application with health & metrics endpoints
+├── grafana/               # Grafana provisioning: data source & dashboards
+│   ├── datasource/prometheus.yaml
+│   └── dashboards/cache-metrics.json
+├── prometheus.yml         # Prometheus scrape configuration
+├── Dockerfile             # Builds FastAPI container (Python 3.11 slim)
+├── docker-compose.yml     # Defines Redis, FastAPI, Prometheus, Grafana services
+├── load_test.py           # Benchmarks cache performance and prints summary
+├── tests/                 # Unit tests for caching logic using pytest + fakeredis
+│   └── test_cache.py
+├── requirements.txt       # Pinned Python dependencies
+├── .github/workflows/ci.yml  # GitHub Actions: CI, tests, lint, and smoke test
 └── README.md              # Project documentation (this file)
 ```
 
@@ -44,34 +52,53 @@ cd big-data-cache-layer
 
 ### 2. Build and Start Services with Docker Compose
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
-- **Redis** will be available at `redis:6379` inside the Docker network.
-- **FastAPI** will run on `http://localhost:5000`.
+- **Redis**: available at `redis:6379` in Docker network.  
+- **FastAPI**: HTTP on `http://localhost:5000`.  
+- **Prometheus**: UI at `http://localhost:9090`.  
+- **Grafana**: UI at `http://localhost:3000` (admin/admin).
 
 ### 3. Verify Endpoints
 - **Cache Endpoint**:  
   ```bash
   curl http://localhost:5000/items/foo
   ```
-  - First call: cache miss → simulated origin fetch (~200ms).  
-  - Second call: cache hit → fast response (~10–20ms).
+  - First call: cache miss → simulated origin (~200 ms).  
+  - Second call: cache hit → fast (~10–20 ms).
 
 - **Metrics Endpoint**:  
   ```bash
   curl http://localhost:5000/metrics
   ```
-  - Exposes Prometheus metrics: `cache_hits_total`, `cache_misses_total`, and `request_latency_seconds`.
+  - Shows Prometheus metrics: `cache_hits_total`, `cache_misses_total`, `request_latency_seconds`.
+
+- **Health Endpoint**:  
+  ```bash
+  curl http://localhost:5000/health
+  ```
+  - Returns `{"status":"ok"}` if Redis is reachable.
+
+---
+
+## Configuration
+
+All key parameters can be set via environment variables (in `docker-compose.yml` or your shell):
+
+- `REDIS_TTL` (seconds): cache time-to-live (default `300`).  
+- `ORIGIN_LATENCY_MS`: simulated origin latency in ms (default `200`).
 
 ---
 
 ## Load Testing & Benchmarking
 
-We measure cache performance using `load_test.py`, which sends 50 requests:
-- 70% for the same key (`foo`) → intended cache hits after initial fetch.
-- 30% for unique keys (`k0`, `k1`, …) → forced cache misses.
+Run the benchmark script:
 
-**Sample Results** (on a local machine with Redis + FastAPI in Docker):
+```bash
+python load_test.py
+```
+
+By default, it sends 50 requests (70% to the same key, 30% to unique keys) and prints a summary like:
 
 ```
 === Summary ===
@@ -79,33 +106,46 @@ Total requests:   50
 Cache hits:       39
 Cache misses:     11
 Errors:           0
-Cache‐hit rate:   78.00%
+Cache-hit rate:   78.00%
 Avg latency:      66.02 ms
 Median latency:   17.55 ms
 ```
 
-- **Cache‐hit rate**: 78% (most requests served from Redis in ~10–20 ms).  
-- **Cache‐misses**: Take ~200 ms (simulated “slow” origin).  
-- **Avg latency**: 66 ms (mixed hits and misses).  
-- **Median latency**: 17 ms (cache‐dominant).
+---
 
-To reproduce these results:
+## Unit Tests
+
+Run tests with `pytest`:
+
 ```bash
-# 1. Ensure Docker Compose is running
-docker-compose up -d
-
-# 2. Run the load-test script
-python load_test.py
-
-# 3. Observe per-request output and summary above
+pytest -q
 ```
+- Uses `fakeredis` for in-memory Redis mocking.  
+- Verifies cache hit/miss counters and latency histogram.
+
+---
+
+## Continuous Integration
+
+CI is configured in `.github/workflows/ci.yml` to:
+
+1. Run `pytest` and `flake8`.  
+2. Build Docker images via `docker compose`.  
+3. Smoke-test the API using the `/health` endpoint.
 
 ---
 
 ## Cleanup
 
-To stop and remove containers:
+To stop and remove all containers:
+
 ```bash
-docker-compose down
+docker compose down
 ```
 
+---
+
+## Author
+
+**Hisham Murad**  
+GitHub: [@H1shamM](https://github.com/H1shamM)
