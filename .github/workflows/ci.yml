@@ -19,8 +19,8 @@ jobs:
         image: prom/prometheus:latest
         ports:
           - 9090:9090
-        volumes:
-          - "${{ github.workspace }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro"
+        options: >-
+          --volume ${{ github.workspace }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       grafana:
         image: grafana/grafana-oss:latest
         ports:
