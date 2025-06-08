@@ -10,23 +10,6 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis:latest
-        ports:
-          - 6379:6379
-      prometheus:
-        image: prom/prometheus:latest
-        ports:
-          - 9090:9090
-        options: >-
-          --volume ${{ github.workspace }}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      grafana:
-        image: grafana/grafana-oss:latest
-        ports:
-          - 3000:3000
-        volumes:
-          - ./grafana/datasource/prometheus.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml:ro
 
     steps:
       - uses: actions/checkout@v3
@@ -49,7 +32,7 @@ jobs:
 
       - name: Smoke-test FastAPI
         run: |
-          docker-compose up -d web redis
+          docker-compose up -d redis web
           sleep 5
           curl --fail http://localhost:5000/health
           docker-compose down
